@@ -43,58 +43,35 @@ export async function POST(request: NextRequest) {
   };
 
   const epicResponse = await fetch(tokenEndpoint, options);
+  const tokenData = await epicResponse.json();
 
-  console.log(epicResponse);
+  console.log("epicResponse:", tokenData);
 
   if (!epicResponse.ok) {
-    const errorText = await epicResponse.text();
     return Response.json(
-      { message: "Token exchange failed", detail: errorText },
+      { message: "Token exchange failed", detail: tokenData },
       { status: epicResponse.status },
     );
   }
 
-  const tokenData = await epicResponse.json();
-
-  console.log(tokenData);
-
-  // // Persist the access token in an httpOnly cookie so client JS cannot read it
-  // const cookieStore = await cookies();
-  // cookieStore.set("epic_access_token", tokenData.access_token, {
-  //   httpOnly: true,
-  //   secure: process.env.NODE_ENV === "production",
-  //   sameSite: "lax",
-  //   // Honour the expiry Epic sends back (in seconds); fall back to 1 hour
-  //   maxAge: tokenData.expires_in ?? 3600,
-  //   path: "/",
-  // });
-
-  // if (tokenData.refresh_token) {
-  //   cookieStore.set("epic_refresh_token", tokenData.refresh_token, {
-  //     httpOnly: true,
-  //     secure: process.env.NODE_ENV === "production",
-  //     sameSite: "lax",
-  //     maxAge: 60 * 60 * 24 * 30, // 30 days
-  //     path: "/",
-  //   });
-  // }
-
-  // // Return non-sensitive metadata to the client
-  // return Response.json({
-  //   token_type: tokenData.token_type,
-  //   expires_in: tokenData.expires_in,
-  //   scope: tokenData.scope,
-  //   patient: tokenData.patient,
-  // });
-
   const cookieStore = await cookies();
+  const maxAge = tokenData.expires_in ?? 3600;
   cookieStore.set({
-    name: "epic_access_token",
+    name: "epicAccessToken",
     value: tokenData.access_token,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: tokenData.expires_in ?? 3600,
+    maxAge,
+    path: "/",
+  });
+  cookieStore.set({
+    name: "epicPatientId",
+    value: tokenData.patient,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge,
     path: "/",
   });
 

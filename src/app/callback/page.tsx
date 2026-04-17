@@ -1,4 +1,5 @@
 "use client";
+
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
@@ -16,19 +17,18 @@ function CallbackContent() {
       console.log(code);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/epic/sandbox/token`,
+        `${process.env.NEXT_PUBLIC_API_ENDPOINT}/epic/sandbox/token`,
         {
           method: "POST",
-          body: JSON.stringify({
-            code,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code }),
         },
       );
 
       const data = await response.json();
       setMessage(data.message);
       if (data.data?.token) {
-        localStorage.setItem("epic_access_token", data.data.token);
+        localStorage.setItem("epicAccessToken", data.data.token);
         localStorage.setItem(
           "epic_expires_in",
           data.data.expires_in.toString(),

@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
+
 export default async function Home() {
   const cookieStore = await cookies();
-  const epicAccessToken = cookieStore.get("epic_access_token");
+  const epicAccessToken = cookieStore.get("epicAccessToken");
 
   const authorizeUrl = new URL(
     `${process.env.EPIC_SANDBOX_BASE_URL}/authorize`,
