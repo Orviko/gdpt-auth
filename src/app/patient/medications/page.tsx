@@ -1,5 +1,6 @@
-import { getAuthCredentials, fhirFetch } from "@/lib/fhir/client";
-import { FHIR_ENDPOINTS } from "@/lib/fhir/constants";
+"use client";
+
+import { useFhir } from "@/hooks/use-fhir";
 import type { FhirBundle, FhirMedicationRequest } from "@/types/fhir";
 import {
   Card,
@@ -9,17 +10,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Info } from "lucide-react";
+import { Info, Pill } from "lucide-react";
 import { FhirError } from "@/components/patient/fhir-error";
+import { PageSkeleton } from "@/components/patient/page-skeleton";
 
 function statusVariant(
   s?: string,
@@ -46,26 +41,26 @@ function getMedicationName(med: FhirMedicationRequest): string {
   );
 }
 
-export default async function MedicationsPage() {
-  const auth = await getAuthCredentials();
-  if (!auth) return null;
+export default function MedicationsPage() {
+  const {
+    data: bundle,
+    error,
+    isLoading,
+  } = useFhir<FhirBundle<FhirMedicationRequest>>("medications");
 
-  const result = await fhirFetch<FhirBundle<FhirMedicationRequest>>(
-    FHIR_ENDPOINTS.medications(auth.patientId),
-    auth.accessToken,
-  );
+  if (isLoading) return <PageSkeleton rows={5} />;
 
-  if (!result.ok) {
+  if (error) {
     return (
       <FhirError
         title="Error loading medications"
-        status={result.status}
-        detail={result.detail}
+        status={error.status}
+        detail={error.detail}
       />
     );
   }
 
-  const medications = result.data.entry?.map((e) => e.resource) ?? [];
+  const medications = bundle?.entry?.map((e) => e.resource) ?? [];
 
   if (medications.length === 0) {
     return (
@@ -88,41 +83,40 @@ export default async function MedicationsPage() {
           on record
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Medication</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Dosage</TableHead>
-              <TableHead>Prescriber</TableHead>
-              <TableHead>Date</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {medications.map((m) => (
-              <TableRow key={m.id}>
-                <TableCell className="font-medium">
-                  {getMedicationName(m)}
-                </TableCell>
-                <TableCell>
+      <CardContent className="space-y-4">
+        {medications.map((m, i) => (
+          <div key={m.id}>
+            {i > 0 && <Separator className="mb-4" />}
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                <Pill className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium leading-snug">
+                    {getMedicationName(m)}
+                  </p>
                   <Badge variant={statusVariant(m.status)}>
                     {m.status ?? "unknown"}
                   </Badge>
-                </TableCell>
-                <TableCell className="max-w-48 text-sm text-muted-foreground">
-                  {m.dosageInstruction?.[0]?.text ?? "\u2014"}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {m.requester?.display ?? "\u2014"}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {m.authoredOn ?? "\u2014"}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </div>
+
+                {m.dosageInstruction?.[0]?.text && (
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {m.dosageInstruction[0].text}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {m.requester?.display && (
+                    <span>Prescriber: {m.requester.display}</span>
+                  )}
+                  {m.authoredOn && <span>Date: {m.authoredOn}</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );

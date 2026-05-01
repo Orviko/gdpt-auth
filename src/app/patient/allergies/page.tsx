@@ -1,6 +1,7 @@
-import { FhirError } from "@/components/patient/fhir-error";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+"use client";
+
+import { useFhir } from "@/hooks/use-fhir";
+import type { FhirAllergyIntolerance, FhirBundle } from "@/types/fhir";
 import {
   Card,
   CardContent,
@@ -8,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -16,10 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { fhirFetch, getAuthCredentials } from "@/lib/fhir/client";
-import { FHIR_ENDPOINTS } from "@/lib/fhir/constants";
-import type { FhirAllergyIntolerance, FhirBundle } from "@/types/fhir";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
+import { FhirError } from "@/components/patient/fhir-error";
+import { PageSkeleton } from "@/components/patient/page-skeleton";
 
 function criticalityVariant(
   c?: string,
@@ -41,26 +43,26 @@ function getCodeableText(concept?: {
   return concept?.text ?? concept?.coding?.[0]?.display ?? "\u2014";
 }
 
-export default async function AllergiesPage() {
-  const auth = await getAuthCredentials();
-  if (!auth) return null;
+export default function AllergiesPage() {
+  const {
+    data: bundle,
+    error,
+    isLoading,
+  } = useFhir<FhirBundle<FhirAllergyIntolerance>>("allergies");
 
-  const result = await fhirFetch<FhirBundle<FhirAllergyIntolerance>>(
-    FHIR_ENDPOINTS.allergies(auth.patientId),
-    auth.accessToken,
-  );
+  if (isLoading) return <PageSkeleton rows={4} />;
 
-  if (!result.ok) {
+  if (error) {
     return (
       <FhirError
         title="Error loading allergies"
-        status={result.status}
-        detail={result.detail}
+        status={error.status}
+        detail={error.detail}
       />
     );
   }
 
-  const allergies = result.data.entry?.map((e) => e.resource) ?? [];
+  const allergies = bundle?.entry?.map((e) => e.resource) ?? [];
 
   if (allergies.length === 0) {
     return (
@@ -96,7 +98,8 @@ export default async function AllergiesPage() {
           </TableHeader>
           <TableBody>
             {allergies.map((a) => {
-              const status = a.clinicalStatus?.coding?.[0]?.code ?? "unknown";
+              const status =
+                a.clinicalStatus?.coding?.[0]?.code ?? "unknown";
               const reactions = a.reaction
                 ?.flatMap(
                   (r) =>

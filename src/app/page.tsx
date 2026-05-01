@@ -25,20 +25,7 @@ export default async function Home() {
     process.env.EPIC_REDIRECT_URI || "",
   );
   authorizeUrl.searchParams.set("response_type", "code");
-  authorizeUrl.searchParams.set(
-    "scope",
-    [
-      "launch",
-      "openid",
-      "fhirUser",
-      "patient/Patient.read",
-      "patient/Condition.read",
-      "patient/AllergyIntolerance.read",
-      "patient/MedicationRequest.read",
-      "patient/Observation.read",
-      "patient/Immunization.read",
-    ].join(" "),
-  );
+  authorizeUrl.searchParams.set("scope", "launch");
   authorizeUrl.searchParams.set("state", "demo");
   authorizeUrl.searchParams.set(
     "aud",

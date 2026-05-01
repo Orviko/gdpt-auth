@@ -1,5 +1,6 @@
-import { getAuthCredentials, fhirFetch } from "@/lib/fhir/client";
-import { FHIR_ENDPOINTS } from "@/lib/fhir/constants";
+"use client";
+
+import { useFhir } from "@/hooks/use-fhir";
 import type { FhirBundle, FhirCondition } from "@/types/fhir";
 import {
   Card,
@@ -18,8 +19,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { FhirError } from "@/components/patient/fhir-error";
+import { PageSkeleton } from "@/components/patient/page-skeleton";
 
 function clinicalStatusVariant(
   status?: string,
@@ -36,30 +38,33 @@ function clinicalStatusVariant(
   }
 }
 
-function getCodeableText(concept?: { coding?: { display?: string }[]; text?: string }): string {
+function getCodeableText(concept?: {
+  coding?: { display?: string }[];
+  text?: string;
+}): string {
   return concept?.text ?? concept?.coding?.[0]?.display ?? "\u2014";
 }
 
-export default async function ConditionsPage() {
-  const auth = await getAuthCredentials();
-  if (!auth) return null;
+export default function ConditionsPage() {
+  const {
+    data: bundle,
+    error,
+    isLoading,
+  } = useFhir<FhirBundle<FhirCondition>>("conditions");
 
-  const result = await fhirFetch<FhirBundle<FhirCondition>>(
-    FHIR_ENDPOINTS.conditions(auth.patientId),
-    auth.accessToken,
-  );
+  if (isLoading) return <PageSkeleton rows={5} />;
 
-  if (!result.ok) {
+  if (error) {
     return (
       <FhirError
         title="Error loading conditions"
-        status={result.status}
-        detail={result.detail}
+        status={error.status}
+        detail={error.detail}
       />
     );
   }
 
-  const conditions = result.data.entry?.map((e) => e.resource) ?? [];
+  const conditions = bundle?.entry?.map((e) => e.resource) ?? [];
 
   if (conditions.length === 0) {
     return (

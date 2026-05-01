@@ -1,5 +1,6 @@
-import { getAuthCredentials, fhirFetch } from "@/lib/fhir/client";
-import { FHIR_ENDPOINTS } from "@/lib/fhir/constants";
+"use client";
+
+import { useFhir } from "@/hooks/use-fhir";
 import type { FhirBundle, FhirObservation } from "@/types/fhir";
 import {
   Card,
@@ -18,8 +19,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { FhirError } from "@/components/patient/fhir-error";
+import { PageSkeleton } from "@/components/patient/page-skeleton";
 
 function interpretationVariant(
   code?: string,
@@ -45,19 +47,21 @@ function interpretationVariant(
   }
 }
 
-function getCodeableText(concept?: { coding?: { display?: string }[]; text?: string }): string {
+function getCodeableText(concept?: {
+  coding?: { display?: string }[];
+  text?: string;
+}): string {
   return concept?.text ?? concept?.coding?.[0]?.display ?? "\u2014";
 }
 
 function formatObservationValue(obs: FhirObservation): string {
-  // Simple value
   if (obs.valueQuantity?.value != null) {
     return `${obs.valueQuantity.value} ${obs.valueQuantity.unit ?? ""}`.trim();
   }
   if (obs.valueString) return obs.valueString;
-  if (obs.valueCodeableConcept) return getCodeableText(obs.valueCodeableConcept);
+  if (obs.valueCodeableConcept)
+    return getCodeableText(obs.valueCodeableConcept);
 
-  // Multi-component (e.g. blood pressure with systolic/diastolic)
   if (obs.component && obs.component.length > 0) {
     return obs.component
       .map((c) => {
@@ -65,7 +69,7 @@ function formatObservationValue(obs: FhirObservation): string {
         const val =
           c.valueQuantity?.value != null
             ? `${c.valueQuantity.value} ${c.valueQuantity.unit ?? ""}`.trim()
-            : c.valueString ?? "";
+            : (c.valueString ?? "");
         return `${label}: ${val}`;
       })
       .join(" / ");
@@ -74,26 +78,26 @@ function formatObservationValue(obs: FhirObservation): string {
   return "\u2014";
 }
 
-export default async function ObservationsPage() {
-  const auth = await getAuthCredentials();
-  if (!auth) return null;
+export default function ObservationsPage() {
+  const {
+    data: bundle,
+    error,
+    isLoading,
+  } = useFhir<FhirBundle<FhirObservation>>("observations");
 
-  const result = await fhirFetch<FhirBundle<FhirObservation>>(
-    FHIR_ENDPOINTS.observations(auth.patientId),
-    auth.accessToken,
-  );
+  if (isLoading) return <PageSkeleton rows={6} />;
 
-  if (!result.ok) {
+  if (error) {
     return (
       <FhirError
         title="Error loading observations"
-        status={result.status}
-        detail={result.detail}
+        status={error.status}
+        detail={error.detail}
       />
     );
   }
 
-  const observations = result.data.entry?.map((e) => e.resource) ?? [];
+  const observations = bundle?.entry?.map((e) => e.resource) ?? [];
 
   if (observations.length === 0) {
     return (
@@ -156,7 +160,9 @@ export default async function ObservationsPage() {
                     {o.effectiveDateTime ?? "\u2014"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{o.status ?? "unknown"}</Badge>
+                    <Badge variant="secondary">
+                      {o.status ?? "unknown"}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               );

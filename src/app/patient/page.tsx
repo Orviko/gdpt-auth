@@ -1,5 +1,6 @@
-import { getAuthCredentials, fhirFetch } from "@/lib/fhir/client";
-import { FHIR_ENDPOINTS } from "@/lib/fhir/constants";
+"use client";
+
+import { useFhir } from "@/hooks/use-fhir";
 import type { FhirPatient } from "@/types/fhir";
 import {
   Card,
@@ -10,8 +11,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { FhirError } from "@/components/patient/fhir-error";
+import { PageSkeleton } from "@/components/patient/page-skeleton";
 
 function formatPatientName(patient: FhirPatient): string {
   const n = patient.name?.[0];
@@ -21,28 +22,23 @@ function formatPatientName(patient: FhirPatient): string {
   return parts.join(" ") || "\u2014";
 }
 
-export default async function PatientProfilePage() {
-  const auth = await getAuthCredentials();
-  if (!auth) return null; // layout already redirects
+export default function PatientProfilePage() {
+  const { data: patient, error, isLoading } = useFhir<FhirPatient>("patient");
 
-  const result = await fhirFetch<FhirPatient>(
-    FHIR_ENDPOINTS.patient(auth.patientId),
-    auth.accessToken,
-  );
+  if (isLoading) return <PageSkeleton rows={4} />;
 
-  if (!result.ok) {
+  if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error loading patient</AlertTitle>
-        <AlertDescription>
-          Could not load patient data (HTTP {result.status}).
-        </AlertDescription>
-      </Alert>
+      <FhirError
+        title="Error loading patient"
+        status={error.status}
+        detail={error.detail}
+      />
     );
   }
 
-  const patient = result.data;
+  if (!patient) return null;
+
   const displayName = formatPatientName(patient);
   const phone = patient.telecom?.find((t) => t.system === "phone")?.value;
   const email = patient.telecom?.find((t) => t.system === "email")?.value;
@@ -119,7 +115,10 @@ export default async function PatientProfilePage() {
               </dt>
               <dd className="mt-1 text-sm">
                 {patient.communication
-                  .map((c) => c.language?.text ?? c.language?.coding?.[0]?.display)
+                  .map(
+                    (c) =>
+                      c.language?.text ?? c.language?.coding?.[0]?.display,
+                  )
                   .filter(Boolean)
                   .join(", ")}
               </dd>
