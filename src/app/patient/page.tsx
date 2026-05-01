@@ -1,94 +1,51 @@
-import { cookies } from "next/headers";
-import Link from "next/link";
-
-/** Must match the `aud` used in the Epic authorize URL on the home page. */
-const EPIC_FHIR_R4_BASE =
-  "https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4";
-
-type HumanName = {
-  text?: string;
-  family?: string;
-  given?: string[];
-};
-
-type FhirPatient = {
-  resourceType: "Patient";
-  id: string;
-  name?: HumanName[];
-  birthDate?: string;
-  gender?: string;
-  telecom?: { system?: string; value?: string }[];
-  address?: {
-    line?: string[];
-    city?: string;
-    state?: string;
-    postalCode?: string;
-  }[];
-};
+import { getAuthCredentials, fhirFetch } from "@/lib/fhir/client";
+import { FHIR_ENDPOINTS } from "@/lib/fhir/constants";
+import type { FhirPatient } from "@/types/fhir";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 function formatPatientName(patient: FhirPatient): string {
   const n = patient.name?.[0];
-  if (!n) return "—";
+  if (!n) return "\u2014";
   if (n.text?.trim()) return n.text.trim();
   const parts = [...(n.given ?? []), n.family].filter(Boolean);
-  return parts.join(" ") || "—";
+  return parts.join(" ") || "\u2014";
 }
 
-export default async function PatientPage() {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get("epicAccessToken")?.value;
-  const patientId = cookieStore.get("epicPatientId")?.value;
+export default async function PatientProfilePage() {
+  const auth = await getAuthCredentials();
+  if (!auth) return null; // layout already redirects
 
-  if (!accessToken || !patientId) {
+  const result = await fhirFetch<FhirPatient>(
+    FHIR_ENDPOINTS.patient(auth.patientId),
+    auth.accessToken,
+  );
+
+  if (!result.ok) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-zinc-50 px-4 py-16 font-sans dark:bg-black">
-        <p className="text-zinc-700 dark:text-zinc-300">
-          Sign in with Epic Sandbox to load your patient record.
-        </p>
-        <Link
-          href="/"
-          className="rounded-md bg-white px-4 py-2 text-black dark:bg-zinc-800 dark:text-white"
-        >
-          Back to home
-        </Link>
-      </div>
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error loading patient</AlertTitle>
+        <AlertDescription>
+          Could not load patient data (HTTP {result.status}).
+        </AlertDescription>
+      </Alert>
     );
   }
 
-  const url = `${EPIC_FHIR_R4_BASE}/Patient/${patientId}`;
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/fhir+json",
-    },
-    cache: "no-store",
-  });
-
-  console.log("res:", res);
-
-  if (!res.ok) {
-    const detail = await res.text();
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-zinc-50 px-4 py-16 font-sans dark:bg-black">
-        <p className="text-center text-red-600 dark:text-red-400">
-          Could not load patient ({res.status}).
-        </p>
-        <pre className="max-h-48 max-w-full overflow-auto rounded border border-zinc-200 bg-white p-3 text-left text-xs text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
-          {detail}
-        </pre>
-        <Link
-          href="/"
-          className="rounded-md bg-white px-4 py-2 text-black dark:bg-zinc-800 dark:text-white"
-        >
-          Back to home
-        </Link>
-      </div>
-    );
-  }
-
-  const patient = (await res.json()) as FhirPatient;
+  const patient = result.data;
   const displayName = formatPatientName(patient);
   const phone = patient.telecom?.find((t) => t.system === "phone")?.value;
+  const email = patient.telecom?.find((t) => t.system === "email")?.value;
   const addr = patient.address?.[0];
   const addressLine = addr?.line?.filter(Boolean).join(", ");
   const cityStateZip = [addr?.city, addr?.state, addr?.postalCode]
@@ -96,74 +53,95 @@ export default async function PatientPage() {
     .join(", ");
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-4 py-12 font-sans dark:bg-black">
-      <div className="w-full max-w-lg rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-          Patient
-        </h1>
-        <dl className="mt-6 space-y-4 text-sm">
-          <div>
-            <dt className="font-medium text-zinc-500 dark:text-zinc-400">
-              Name
-            </dt>
-            <dd className="mt-1 text-zinc-900 dark:text-zinc-100">
-              {displayName}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-zinc-500 dark:text-zinc-400">
-              Patient ID
-            </dt>
-            <dd className="mt-1 font-mono text-xs text-zinc-800 dark:text-zinc-200">
-              {patient.id}
-            </dd>
-          </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl">{displayName}</CardTitle>
+        <CardDescription className="font-mono text-xs">
+          Patient ID: {patient.id}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <dl className="grid gap-4 sm:grid-cols-2">
           {patient.gender && (
             <div>
-              <dt className="font-medium text-zinc-500 dark:text-zinc-400">
+              <dt className="text-sm font-medium text-muted-foreground">
                 Gender
               </dt>
-              <dd className="mt-1 capitalize text-zinc-900 dark:text-zinc-100">
-                {patient.gender}
+              <dd className="mt-1">
+                <Badge variant="secondary" className="capitalize">
+                  {patient.gender}
+                </Badge>
               </dd>
             </div>
           )}
+
           {patient.birthDate && (
             <div>
-              <dt className="font-medium text-zinc-500 dark:text-zinc-400">
-                Birth date
+              <dt className="text-sm font-medium text-muted-foreground">
+                Date of Birth
               </dt>
-              <dd className="mt-1 text-zinc-900 dark:text-zinc-100">
-                {patient.birthDate}
-              </dd>
+              <dd className="mt-1 text-sm">{patient.birthDate}</dd>
             </div>
           )}
+
           {phone && (
             <div>
-              <dt className="font-medium text-zinc-500 dark:text-zinc-400">
+              <dt className="text-sm font-medium text-muted-foreground">
                 Phone
               </dt>
-              <dd className="mt-1 text-zinc-900 dark:text-zinc-100">{phone}</dd>
+              <dd className="mt-1 text-sm">{phone}</dd>
             </div>
           )}
-          {(addressLine || cityStateZip) && (
+
+          {email && (
             <div>
-              <dt className="font-medium text-zinc-500 dark:text-zinc-400">
-                Address
+              <dt className="text-sm font-medium text-muted-foreground">
+                Email
               </dt>
-              <dd className="mt-1 text-zinc-900 dark:text-zinc-100">
-                {[addressLine, cityStateZip].filter(Boolean).join("\n")}
+              <dd className="mt-1 text-sm">{email}</dd>
+            </div>
+          )}
+
+          {patient.maritalStatus?.text && (
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">
+                Marital Status
+              </dt>
+              <dd className="mt-1 text-sm">{patient.maritalStatus.text}</dd>
+            </div>
+          )}
+
+          {patient.communication && patient.communication.length > 0 && (
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">
+                Language
+              </dt>
+              <dd className="mt-1 text-sm">
+                {patient.communication
+                  .map((c) => c.language?.text ?? c.language?.coding?.[0]?.display)
+                  .filter(Boolean)
+                  .join(", ")}
               </dd>
             </div>
           )}
         </dl>
-        <Link
-          href="/"
-          className="mt-8 inline-block rounded-md bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          Back to home
-        </Link>
-      </div>
-    </div>
+
+        {(addressLine || cityStateZip) && (
+          <>
+            <Separator className="my-4" />
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">
+                Address
+              </dt>
+              <dd className="mt-1 text-sm">
+                {addressLine && <span className="block">{addressLine}</span>}
+                {cityStateZip && <span className="block">{cityStateZip}</span>}
+              </dd>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }

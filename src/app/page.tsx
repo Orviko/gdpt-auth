@@ -1,4 +1,13 @@
+import { buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { cookies } from "next/headers";
+import Link from "next/link";
 
 export default async function Home() {
   const cookieStore = await cookies();
@@ -16,7 +25,20 @@ export default async function Home() {
     process.env.EPIC_REDIRECT_URI || "",
   );
   authorizeUrl.searchParams.set("response_type", "code");
-  authorizeUrl.searchParams.set("scope", "launch");
+  authorizeUrl.searchParams.set(
+    "scope",
+    [
+      "launch",
+      "openid",
+      "fhirUser",
+      "patient/Patient.read",
+      "patient/Condition.read",
+      "patient/AllergyIntolerance.read",
+      "patient/MedicationRequest.read",
+      "patient/Observation.read",
+      "patient/Immunization.read",
+    ].join(" "),
+  );
   authorizeUrl.searchParams.set("state", "demo");
   authorizeUrl.searchParams.set(
     "aud",
@@ -24,31 +46,26 @@ export default async function Home() {
   );
 
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      {epicAccessToken ? (
-        <div>
-          You are logged in
-          <a
-            href="/patient"
-            className="px-4 py-2 bg-white text-black rounded-md cursor-pointer"
-          >
-            Patient
-          </a>
-        </div>
-      ) : (
-        <a
-          className="px-4 py-2 bg-white text-black rounded-md cursor-pointer"
-          href={authorizeUrl.toString()}
-        >
-          Epic Sandbox
-        </a>
-      )}
-      <a
-        className="px-4 py-2 bg-white text-black rounded-md cursor-pointer"
-        href={authorizeUrl.toString()}
-      >
-        Epic Sandbox
-      </a>
+    <div className="flex flex-1 flex-col items-center justify-center bg-background px-4 font-sans">
+      <Card className="w-full max-w-sm text-center">
+        <CardHeader>
+          <CardTitle className="text-2xl">Good Patient</CardTitle>
+          <CardDescription>
+            Connect to Epic to view patient records
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {epicAccessToken ? (
+            <Link href="/patient" className={buttonVariants()}>
+              View Patient Record
+            </Link>
+          ) : (
+            <a href={authorizeUrl.toString()} className={buttonVariants()}>
+              Sign in with Epic Sandbox
+            </a>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
