@@ -25,7 +25,7 @@ export default async function Home() {
     process.env.EPIC_REDIRECT_URI || "",
   );
   authorizeUrl.searchParams.set("response_type", "code");
-  authorizeUrl.searchParams.set("scope", "launch");
+  authorizeUrl.searchParams.set("scope", process.env.EPIC_SCOPE || "launch");
   authorizeUrl.searchParams.set("state", "demo");
   authorizeUrl.searchParams.set(
     "aud",
