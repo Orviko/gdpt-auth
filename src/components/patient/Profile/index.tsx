@@ -59,7 +59,7 @@ export default function PatientProfile({
         <CardDescription className="font-mono text-xs">
           Patient ID: {patient.id}
         </CardDescription>
-        <CardDescription className="font-mono text-xs">
+        <CardDescription className="font-mono text-xs text-wrap whitespace-pre-wrap">
           Access Token: {accessToken}
         </CardDescription>
       </CardHeader>
