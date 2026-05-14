@@ -1,6 +1,7 @@
 "use client";
 
 import { useFhir } from "@/hooks/use-fhir";
+import { getBundleResources } from "@/lib/fhir/bundle";
 import type { FhirBundle, FhirCondition } from "@/types/fhir";
 import {
   Card,
@@ -64,7 +65,7 @@ export default function ConditionsPage() {
     );
   }
 
-  const conditions = bundle?.entry?.map((e) => e.resource) ?? [];
+  const conditions = getBundleResources(bundle);
 
   if (conditions.length === 0) {
     return (

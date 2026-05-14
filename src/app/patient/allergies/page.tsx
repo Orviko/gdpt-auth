@@ -1,6 +1,7 @@
 "use client";
 
 import { useFhir } from "@/hooks/use-fhir";
+import { getBundleResources } from "@/lib/fhir/bundle";
 import type { FhirAllergyIntolerance, FhirBundle } from "@/types/fhir";
 import {
   Card,
@@ -62,7 +63,7 @@ export default function AllergiesPage() {
     );
   }
 
-  const allergies = bundle?.entry?.map((e) => e.resource) ?? [];
+  const allergies = getBundleResources(bundle);
 
   if (allergies.length === 0) {
     return (

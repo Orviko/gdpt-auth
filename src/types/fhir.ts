@@ -33,13 +33,31 @@ export type FhirQuantity = {
   code?: string;
 };
 
+// ---- OperationOutcome ----
+
+export type FhirOperationOutcome = {
+  resourceType: "OperationOutcome";
+  issue?: {
+    severity?: string;
+    code?: string;
+    details?: { text?: string };
+    diagnostics?: string;
+  }[];
+};
+
 // ---- Bundle ----
+
+export type FhirBundleEntry<T> = {
+  fullUrl?: string;
+  resource: T | FhirOperationOutcome;
+  search?: { mode?: "match" | "include" | "outcome" };
+};
 
 export type FhirBundle<T> = {
   resourceType: "Bundle";
   type: string;
   total?: number;
-  entry?: { resource: T }[];
+  entry?: FhirBundleEntry<T>[];
   link?: { relation: string; url: string }[];
 };
 
@@ -183,4 +201,28 @@ export type FhirImmunization = {
   route?: FhirCodeableConcept;
   doseQuantity?: FhirQuantity;
   note?: FhirAnnotation[];
+};
+
+// ---- DiagnosticReport ----
+
+export type FhirDiagnosticReport = {
+  resourceType: "DiagnosticReport";
+  id: string;
+  status?: string;
+  category?: FhirCodeableConcept[];
+  code?: FhirCodeableConcept;
+  subject?: FhirReference;
+  encounter?: FhirReference;
+  effectiveDateTime?: string;
+  effectivePeriod?: FhirPeriod;
+  issued?: string;
+  performer?: FhirReference[];
+  result?: FhirReference[];
+  conclusion?: string;
+  conclusionCode?: FhirCodeableConcept[];
+  presentedForm?: {
+    contentType?: string;
+    url?: string;
+    title?: string;
+  }[];
 };

@@ -1,28 +1,29 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
-import {
-  User,
-  Stethoscope,
-  ShieldAlert,
-  Pill,
-  Activity,
-  Syringe,
-  Menu,
-  LogOut,
-} from "lucide-react";
 import { logout } from "@/app/actions/logout";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
-  SheetTrigger,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import {
+  Activity,
+  FileText,
+  LogOut,
+  Menu,
+  Pill,
+  ShieldAlert,
+  Stethoscope,
+  Syringe,
+  User,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 const NAV_ITEMS = [
   { label: "Profile", href: "/patient", icon: User },
@@ -31,6 +32,11 @@ const NAV_ITEMS = [
   { label: "Medications", href: "/patient/medications", icon: Pill },
   { label: "Vitals", href: "/patient/observations", icon: Activity },
   { label: "Immunizations", href: "/patient/immunizations", icon: Syringe },
+  {
+    label: "Diagnostic Reports",
+    href: "/patient/diagnostic-reports",
+    icon: FileText,
+  },
 ] as const;
 
 export function PatientNav() {
@@ -83,9 +89,7 @@ export function PatientNav() {
         {/* Mobile nav */}
         <div className="flex flex-1 justify-end md:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger
-              render={<Button variant="ghost" size="icon" />}
-            >
+            <SheetTrigger render={<Button variant="ghost" size="icon" />}>
               <Menu className="h-5 w-5" />
               <span className="sr-only">Open menu</span>
             </SheetTrigger>

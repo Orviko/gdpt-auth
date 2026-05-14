@@ -9,6 +9,7 @@ const RESOURCE_MAP: Record<string, (patientId: string) => string> = {
   medications: (id) => FHIR_ENDPOINTS.medications(id),
   observations: (id) => FHIR_ENDPOINTS.observations(id),
   immunizations: (id) => FHIR_ENDPOINTS.immunizations(id),
+  "diagnostic-reports": (id) => FHIR_ENDPOINTS.diagnosticReports(id),
 };
 
 export async function GET(

@@ -1,6 +1,7 @@
 "use client";
 
 import { useFhir } from "@/hooks/use-fhir";
+import { getBundleResources } from "@/lib/fhir/bundle";
 import type { FhirBundle, FhirObservation } from "@/types/fhir";
 import {
   Card,
@@ -97,7 +98,7 @@ export default function ObservationsPage() {
     );
   }
 
-  const observations = bundle?.entry?.map((e) => e.resource) ?? [];
+  const observations = getBundleResources(bundle);
 
   if (observations.length === 0) {
     return (

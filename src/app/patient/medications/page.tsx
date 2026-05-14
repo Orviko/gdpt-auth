@@ -1,6 +1,7 @@
 "use client";
 
 import { useFhir } from "@/hooks/use-fhir";
+import { getBundleResources } from "@/lib/fhir/bundle";
 import type { FhirBundle, FhirMedicationRequest } from "@/types/fhir";
 import {
   Card,
@@ -60,7 +61,7 @@ export default function MedicationsPage() {
     );
   }
 
-  const medications = bundle?.entry?.map((e) => e.resource) ?? [];
+  const medications = getBundleResources(bundle);
 
   if (medications.length === 0) {
     return (

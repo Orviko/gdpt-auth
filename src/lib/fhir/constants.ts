@@ -19,4 +19,7 @@ export const FHIR_ENDPOINTS = {
 
   immunizations: (patientId: string) =>
     `${FHIR_BASE_URL}/Immunization?patient=${patientId}`,
+
+  diagnosticReports: (patientId: string) =>
+    `${FHIR_BASE_URL}/DiagnosticReport?patient=${patientId}`,
 } as const;

@@ -2,7 +2,7 @@
 
 import { useFhir } from "@/hooks/use-fhir";
 import { getBundleResources } from "@/lib/fhir/bundle";
-import type { FhirBundle, FhirImmunization } from "@/types/fhir";
+import type { FhirBundle, FhirDiagnosticReport } from "@/types/fhir";
 import {
   Card,
   CardContent,
@@ -25,17 +25,21 @@ import { FhirError } from "@/components/patient/fhir-error";
 import { PageSkeleton } from "@/components/patient/page-skeleton";
 
 function statusVariant(
-  s?: string,
+  status?: string,
 ): "default" | "secondary" | "destructive" | "outline" {
-  switch (s) {
-    case "completed":
+  switch (status) {
+    case "final":
       return "default";
-    case "not-done":
-      return "destructive";
+    case "preliminary":
+      return "secondary";
+    case "cancelled":
     case "entered-in-error":
+      return "destructive";
+    case "registered":
+    case "partial":
       return "outline";
     default:
-      return "secondary";
+      return "outline";
   }
 }
 
@@ -46,34 +50,46 @@ function getCodeableText(concept?: {
   return concept?.text ?? concept?.coding?.[0]?.display ?? "\u2014";
 }
 
-export default function ImmunizationsPage() {
+function formatCategories(
+  categories?: { text?: string; coding?: { display?: string }[] }[],
+): string {
+  if (!categories || categories.length === 0) return "\u2014";
+  return (
+    categories
+      .map((c) => c.text ?? c.coding?.[0]?.display)
+      .filter(Boolean)
+      .join(", ") || "\u2014"
+  );
+}
+
+export default function DiagnosticReportsPage() {
   const {
     data: bundle,
     error,
     isLoading,
-  } = useFhir<FhirBundle<FhirImmunization>>("immunizations");
+  } = useFhir<FhirBundle<FhirDiagnosticReport>>("diagnostic-reports");
 
-  if (isLoading) return <PageSkeleton rows={4} />;
+  if (isLoading) return <PageSkeleton rows={5} />;
 
   if (error) {
     return (
       <FhirError
-        title="Error loading immunizations"
+        title="Error loading diagnostic reports"
         status={error.status}
         detail={error.detail}
       />
     );
   }
 
-  const immunizations = getBundleResources(bundle);
+  const reports = getBundleResources(bundle);
 
-  if (immunizations.length === 0) {
+  if (reports.length === 0) {
     return (
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>No immunization records</AlertTitle>
+        <AlertTitle>No diagnostic reports</AlertTitle>
         <AlertDescription>
-          No immunization history was found for this patient.
+          No diagnostic reports were found for this patient.
         </AlertDescription>
       </Alert>
     );
@@ -82,42 +98,47 @@ export default function ImmunizationsPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Immunization History</CardTitle>
+        <CardTitle>Diagnostic Reports</CardTitle>
         <CardDescription>
-          {immunizations.length} immunization
-          {immunizations.length !== 1 ? "s" : ""} on record
+          {reports.length} report{reports.length !== 1 ? "s" : ""} on record
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Vaccine</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>Report</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Lot Number</TableHead>
-              <TableHead>Site</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Performer</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {immunizations.map((imm) => (
-              <TableRow key={imm.id}>
+            {reports.map((r) => (
+              <TableRow key={r.id}>
                 <TableCell className="font-medium">
-                  {getCodeableText(imm.vaccineCode)}
+                  {getCodeableText(r.code)}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {imm.occurrenceDateTime ?? imm.occurrenceString ?? "\u2014"}
+                  {formatCategories(r.category)}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusVariant(imm.status)}>
-                    {imm.status ?? "unknown"}
+                  <Badge variant={statusVariant(r.status)}>
+                    {r.status ?? "unknown"}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {imm.lotNumber ?? "\u2014"}
+                  {r.effectiveDateTime ??
+                    r.effectivePeriod?.start ??
+                    r.issued ??
+                    "\u2014"}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {getCodeableText(imm.site)}
+                  {r.performer
+                    ?.map((p) => p.display)
+                    .filter(Boolean)
+                    .join(", ") || "\u2014"}
                 </TableCell>
               </TableRow>
             ))}

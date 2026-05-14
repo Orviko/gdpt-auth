@@ -13,6 +13,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useFhir } from "@/hooks/use-fhir";
 import type { FhirPatient } from "@/types/fhir";
+import { useEffect, useRef, useState } from "react";
+
+const copyValueButtonClass =
+  "inline-flex max-w-full cursor-pointer rounded px-0.5 text-left hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 function formatPatientName(patient: FhirPatient): string {
   const n = patient.name?.[0];
@@ -27,7 +31,31 @@ export default function PatientProfile({
 }: {
   accessToken: string;
 }) {
+  const [copied, setCopied] = useState<"patient" | "token" | null>(null);
+  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { data: patient, error, isLoading } = useFhir<FhirPatient>("patient");
+
+  useEffect(
+    () => () => {
+      if (copyResetRef.current) clearTimeout(copyResetRef.current);
+    },
+    [],
+  );
+
+  async function copyField(text: string, kind: "patient" | "token") {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      if (copyResetRef.current) clearTimeout(copyResetRef.current);
+      setCopied(kind);
+      copyResetRef.current = setTimeout(() => {
+        setCopied(null);
+        copyResetRef.current = null;
+      }, 2000);
+    } catch {
+      setCopied(null);
+    }
+  }
 
   if (isLoading) return <PageSkeleton rows={4} />;
 
@@ -57,10 +85,48 @@ export default function PatientProfile({
       <CardHeader>
         <CardTitle className="text-2xl">{displayName}</CardTitle>
         <CardDescription className="font-mono text-xs">
-          Patient ID: {patient.id}
+          <span className="text-muted-foreground">Patient ID: </span>
+          {patient.id ? (
+            <>
+              <button
+                type="button"
+                title="Click to copy"
+                className={copyValueButtonClass}
+                onClick={() => void copyField(patient.id!, "patient")}
+              >
+                {patient.id}
+              </button>
+              {copied === "patient" && (
+                <span className="ml-2 font-sans text-emerald-600 dark:text-emerald-400">
+                  Copied
+                </span>
+              )}
+            </>
+          ) : (
+            "\u2014"
+          )}
         </CardDescription>
         <CardDescription className="font-mono text-xs break-all">
-          Access Token: {accessToken}
+          <span className="text-muted-foreground">Access Token: </span>
+          {accessToken ? (
+            <>
+              <button
+                type="button"
+                title="Click to copy"
+                className={copyValueButtonClass}
+                onClick={() => void copyField(accessToken, "token")}
+              >
+                {accessToken}
+              </button>
+              {copied === "token" && (
+                <span className="ml-2 font-sans text-emerald-600 dark:text-emerald-400">
+                  Copied
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground">{"\u2014"}</span>
+          )}
         </CardDescription>
       </CardHeader>
 
